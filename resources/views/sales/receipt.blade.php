@@ -282,8 +282,13 @@
             </tr>
         @endif
     </table>
+ 
+    <div class="line-dash"></div>
 
-   
+    {{-- ════════ PRINT BUTTON ════════ --}}
+    <div class="no-print">
+        <button onclick="printReceipt()">&#128424; Print Receipt</button>
+    </div>
 
     <script>
         function printReceipt() {
