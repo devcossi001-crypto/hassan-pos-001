@@ -64,7 +64,7 @@
             margin: 3px 0;
         }
         .line-dash::after {
-            content: "- - - - - - - - - - - - - - - - - - - - - - - - - - - -";
+            /* content: "- - - - - - - - - - - - - - - - - - - - - - - - - - - -"; */
         }
         .line-equal {
             border: none;
