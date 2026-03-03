@@ -5,7 +5,7 @@
     <title>Receipt #{{ $sale->id }}</title>
     <style>
         @page {
-            size: A3 auto;
+            size: 80mm auto;
             margin: 0;
         }
 
@@ -14,12 +14,12 @@
         }
 
         body {
-            width: 1000px;
-            margin: 30px auto;
-            padding: 60px;
+            width: 80mm;
+            margin: 10px auto;
+            padding: 8px;
             font-family: "Courier New", monospace;
-            font-size: 32px;
-            line-height: 2.2;
+            font-size: 12px;
+            line-height: 1.4;
             background: #fff;
             box-shadow: 0 2px 16px rgba(0,0,0,0.25);
         }
@@ -28,10 +28,11 @@
             html { background: none; }
             body {
                 margin: 0;
-                padding: 25px;
+                padding: 5px;
                 box-shadow: none;
-                font-size: 24px;
-                line-height: 1.8;
+                font-size: 11px;
+                line-height: 1.3;
+                width: 80mm;
             }
         }
 
@@ -41,21 +42,21 @@
 
         hr {
             border: none;
-            border-top: 2px dashed black;
-            margin: 12px 0;
+            border-top: 1px dashed black;
+            margin: 3px 0;
         }
 
         table {
             width: 100%;
-            font-size: 24px;
+            font-size: 11px;
             border-collapse: collapse;
         }
 
-        td { padding: 6px 0; }
+        td { padding: 1px 0; }
 
         .total {
             font-weight: bold;
-            font-size: 28px;
+            font-size: 13px;
         }
 
         @media print {
