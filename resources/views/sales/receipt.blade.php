@@ -216,7 +216,13 @@
     <table>
         @foreach($sale->items as $item)
             <tr>
-                <td class="item-name">{{ Str::limit($item->product?->name ?? 'Item', 20) }}</td>
+                <td class="item-name">
+                    {{ Str::limit($item->product?->name ?? 'Item', 20) }}
+                    @php $imei = $item->imei ?? $item->product?->imei ?? null; @endphp
+                    @if($imei)
+                        <div style="font-size:10px; margin-top:2px;">IMEI: {{ $imei }}</div>
+                    @endif
+                </td>
                 <td class="item-qty">x{{ $item->quantity }}</td>
                 <td class="item-amt">{{ number_format($item->line_total, 2) }}</td>
             </tr>
@@ -277,19 +283,7 @@
         @endif
     </table>
 
-    {{-- ════════ FOOTER ════════ --}}
-    <div class="line-equal"></div>
-    <div class="footer">
-        Thank you for shopping with us!<br>
-        Goods once sold are not returnable.<br>
-        * COME AGAIN *
-    </div>
-    <div class="line-dash"></div>
-
-    {{-- ════════ PRINT BUTTON ════════ --}}
-    <div class="no-print">
-        <button onclick="printReceipt()">&#128424; Print Receipt</button>
-    </div>
+   
 
     <script>
         function printReceipt() {
