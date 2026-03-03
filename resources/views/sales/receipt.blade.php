@@ -14,12 +14,12 @@
         }
 
         body {
-            width: 58mm;
-            margin: 20px auto;
-            padding: 8px;
+            width: 320px;
+            margin: 30px auto;
+            padding: 16px;
             font-family: "Courier New", monospace;
-            font-size: 11px;
-            line-height: 1.5;
+            font-size: 14px;
+            line-height: 1.7;
             background: #fff;
             box-shadow: 0 2px 16px rgba(0,0,0,0.25);
         }
