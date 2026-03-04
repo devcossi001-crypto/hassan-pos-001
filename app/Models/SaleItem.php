@@ -14,6 +14,7 @@ class SaleItem extends Model
         'unit_price',
         'line_total',
         'discount_per_item',
+          'imei', 
     ];
 
     protected $casts = [

@@ -91,76 +91,93 @@ class SalesController extends Controller
         return response()->json($products);
     }
 
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'customer_id' => 'nullable|exists:customers,id',
-            'cart_data' => 'required|string',
-            'payment_method' => 'required|in:cash,mpesa,card,credit',
-            'mpesa_phone' => 'nullable|string',
-            'discount' => 'nullable|numeric|min:0',
-            'tax_amount' => 'required|numeric|min:0',
-            'total_amount' => 'required|numeric|min:0',
-            'amount_tendered' => 'nullable|numeric|min:0',
-        ]);
+public function store(Request $request)
+{
+    $validated = $request->validate([
+        'customer_id'     => 'nullable|exists:customers,id',
+        'cart_data'       => 'required|string',
+        'payment_method'  => 'required|in:cash,mpesa,card,credit',
+        'mpesa_phone'     => 'nullable|string',
+        'discount'        => 'nullable|numeric|min:0',
+        'tax_amount'      => 'required|numeric|min:0',
+        'total_amount'    => 'required|numeric|min:0',
+        'amount_tendered' => 'nullable|numeric|min:0',
+    ]);
 
-        try {
-            // Get active shift
-            $shift = Shift::where('status', 'open')
-                ->where('cashier_id', auth()->id())
-                ->firstOrFail();
+    try {
+        // Get active shift
+        $shift = Shift::where('status', 'open')
+            ->where('cashier_id', auth()->id())
+            ->firstOrFail();
 
-            // Parse items from JSON
-            $items = json_decode($validated['cart_data'], true);
-            if (empty($items)) {
-                return back()->with('error', 'No items in sale');
-            }
-
-            // Convert items to expected format for SalesService
-            $formattedItems = [];
-            $subtotal = 0;
-            foreach ($items as $item) {
-                $lineTotal = $item['quantity'] * $item['price'];
-                $subtotal += $lineTotal;
-                $formattedItems[] = [
-                    'product_id' => $item['id'],
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $item['price'],
-                    'line_total' => $lineTotal,
-                    'discount_per_item' => 0
-                ];
-            }
-
-            $saleData = [
-                'cashier_id' => auth()->id(),
-                'customer_id' => $validated['customer_id'] ?? null,
-                'status' => 'completed',
-                'subtotal' => $subtotal,
-                'tax_amount' => (float)$validated['tax_amount'],
-                'discount_amount' => (float)($validated['discount'] ?? 0),
-                'total_amount' => (float)$validated['total_amount'],
-                'primary_payment_method' => $validated['payment_method'],
-                'cash_paid' => $validated['payment_method'] === 'cash' ? (float)$validated['total_amount'] : 0,
-                'mpesa_paid' => $validated['payment_method'] === 'mpesa' ? (float)$validated['total_amount'] : 0,
-                'card_paid' => $validated['payment_method'] === 'card' ? (float)$validated['total_amount'] : 0,
-                'change_amount' => $validated['payment_method'] === 'cash' ? 
-                    max(0, (float)($validated['amount_tendered'] ?? 0) - (float)$validated['total_amount']) : 0,
-                'notes' => $validated['mpesa_phone'] ?? null,
-                'shift_id' => $shift->id,
-                'items' => $formattedItems
-            ];
-
-            $sale = $this->salesService->createSale($saleData);
-
-            // Clear the database cart for this user
-            CartItem::where('user_id', auth()->id())->delete();
-
-            return redirect()->route('sales.receipt', $sale)
-                ->with('success', 'Sale completed successfully!');
-        } catch (\Exception $e) {
-            return back()->with('error', 'Error creating sale: ' . $e->getMessage());
+        // Parse items from JSON
+        $items = json_decode($validated['cart_data'], true);
+        if (empty($items)) {
+            return back()->with('error', 'No items in sale');
         }
+
+        // Pre-load all products in one query (avoid N+1)
+        $productIds = array_column($items, 'id');
+        $products = Product::whereIn('id', $productIds)
+            ->get()
+            ->keyBy('id'); // keyed by product ID for easy lookup
+
+        // Convert items to expected format for SalesService
+        $formattedItems = [];
+        $subtotal = 0;
+
+        foreach ($items as $item) {
+            $lineTotal = $item['quantity'] * $item['price'];
+            $subtotal += $lineTotal;
+
+            $product = $products->get($item['id']);
+
+            $formattedItems[] = [
+                'product_id'        => $item['id'],
+                'quantity'          => $item['quantity'],
+                'unit_price'        => $item['price'],
+                'line_total'        => $lineTotal,
+                'discount_per_item' => 0,
+                'imei'              => $product?->imei ?? null, // ✅ fetched from DB
+            ];
+        }
+
+        $amountTendered = (float)($validated['amount_tendered'] ?? 0);
+        $totalAmount    = (float)$validated['total_amount'];
+        $paymentMethod  = $validated['payment_method'];
+
+        $saleData = [
+            'cashier_id'             => auth()->id(),
+            'customer_id'            => $validated['customer_id'] ?? null,
+            'status'                 => 'completed',
+            'subtotal'               => $subtotal,
+            'tax_amount'             => (float)$validated['tax_amount'],
+            'discount_amount'        => (float)($validated['discount'] ?? 0),
+            'total_amount'           => $totalAmount,
+            'primary_payment_method' => $paymentMethod,
+            'cash_paid'              => $paymentMethod === 'cash'  ? $totalAmount : 0,
+            'mpesa_paid'             => $paymentMethod === 'mpesa' ? $totalAmount : 0,
+            'card_paid'              => $paymentMethod === 'card'  ? $totalAmount : 0,
+            'change_amount'          => $paymentMethod === 'cash'
+                                            ? max(0, $amountTendered - $totalAmount)
+                                            : 0,
+            'notes'                  => $validated['mpesa_phone'] ?? null,
+            'shift_id'               => $shift->id,
+            'items'                  => $formattedItems,
+        ];
+
+        $sale = $this->salesService->createSale($saleData);
+
+        // Clear the database cart for this user
+        CartItem::where('user_id', auth()->id())->delete();
+
+        return redirect()->route('sales.receipt', $sale)
+            ->with('success', 'Sale completed successfully!');
+
+    } catch (\Exception $e) {
+        return back()->with('error', 'Error creating sale: ' . $e->getMessage());
     }
+}
 
     public function show(Sale $sale): View
     {
